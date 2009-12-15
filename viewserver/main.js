@@ -1,4 +1,7 @@
+#!/usr/bin/env node
+
 var sys = require("sys");
+var posix = require("posix");
 
 var store = {};
 current_functions = [];
@@ -67,8 +70,17 @@ var handler_map = {
   update: function(args) {},
 };
 
+var fn = "/Users/mikeal/Desktop/node.log";
+
+posix.open(fn, process.O_WRONLY | process.O_TRUNC | process.O_CREAT, 0644).addCallback(function (file) {
+  log = function(string) {
+    posix.write(file, string, 0, "utf8");
+  }
+});
+
 var handleLine = function (line) {
   var line = JSON.parse(line);
+  log(line);
   var r = handler_map[line.pop(0)](line);
   output(r);
 }
