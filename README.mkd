@@ -1,0 +1,24 @@
+# node.couch.js
+
+This a repository full of all kinds of CouchDB + node.js goodies. This is not, however, a CouchDB client library.
+
+## changes
+
+To use the changes service:
+
+> cd changes
+> node service.js http://localhost:5984
+
+This will start the service, look for any design documents, and start any change listeners you've defined. It also checks every minute for new databases.
+
+To define a new listener in your design doc:
+
+> { ....
+>  
+>  "changes":"var sys = require('sys');
+>             var listener = function (change) {
+>               sys.puts(JSON.stringify(change));
+>             }
+>             exports.listener = listener;",
+>  }
+
