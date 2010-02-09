@@ -84,19 +84,23 @@ Deligation.prototype.designDocChange = function (dbname, id) {
     delete d.modules[dbname+'/'+id];
   }
   getDesignDoc(this.baseurl, dbname, id).addCallback(function(doc){
-    if (doc.changes) {
-      loadModule(doc.changes, dbname+'/'+id+'.changes')
-        .addCallback(function(module) {
-          if (module.listener) {
-            d.changes[dbname].addListener("change", module.listener);
-          }
-          d.modules[dbname+'/'+id] = module;
-        })
-        .addErrback(function() {
-          sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id));
-        })
-    }
+    d.handleDesignDoc(dbname, doc);
   });
+}
+Deligation.prototype.handleDesignDoc = function (dbname, doc) {
+  var d = this;
+  if (doc.changes) {
+    loadModule(doc.changes, dbname+'/'+doc._id+'.changes')
+      .addCallback(function(module) {
+        if (module.listener) {
+          d.changes[dbname].addListener("change", module.listener);
+        }
+        d.modules[dbname+'/'+doc._id] = module;
+      })
+      .addErrback(function() {
+        sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id));
+      })
+  }
 }
 
 var getDesignDocs = function (port, hostname, dbpath) {
