@@ -13,12 +13,14 @@ This will start the service, look for any design documents, and start any change
 
 To define a new listener in your design doc:
 
-> { ....
->  
->  "changes":"var sys = require('sys');
->             var listener = function (change) {
->               sys.puts(JSON.stringify(change));
->             }
->             exports.listener = listener;",
->  }
+<pre>
+{ ....
+
+"changes":"var sys = require('sys');
+           var listener = function (change) {
+             sys.puts(JSON.stringify(change));
+           }
+           exports.listener = listener;",
+}
+</pre>
 
