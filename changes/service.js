@@ -6,8 +6,7 @@ var listener = require('./listener'),
     posix = require('posix'),
     http = require('http');
 
-
-var loadModule = function (content) {
+var loadModule = function (content, name) {
   var p = new events.Promise();
   var wrapper = "(function (exports, require, module, __filename, __dirname) { "
               + content
@@ -16,7 +15,7 @@ var loadModule = function (content) {
   self = this;
   setTimeout( function () {
     try {
-      var compiledWrapper = eval(wrapper);
+      var compiledWrapper = process.compile(wrapper, name);
       compiledWrapper.apply(exports, [exports, require, self]);
       p.emitSuccess(exports);
     } catch (e) {
@@ -57,9 +56,7 @@ var getDesignDoc = function (baseurl, dbname, id) {
   return p;
 }
 
-var Deligation = function (baseurl, d) {
-  this.writerDirectory = d;
-  this.designDocs = {};
+var Deligation = function (baseurl) {
   if (baseurl[baseurl.length - 1] != '/') {
     baseurl += '/';
   }
@@ -86,10 +83,9 @@ Deligation.prototype.designDocChange = function (dbname, id) {
     delete module
     delete d.modules[dbname+'/'+id];
   }
-  
   getDesignDoc(this.baseurl, dbname, id).addCallback(function(doc){
     if (doc.changes) {
-      loadModule(doc.changes)
+      loadModule(doc.changes, dbname+'/'+id+'.changes')
         .addCallback(function(module) {
           if (module.listener) {
             d.changes[dbname].addListener("change", module.listener);
@@ -130,8 +126,7 @@ var inArray = function (array, obj) {
   return false;
 }
 
-if (process.argv[process.argv.length - 1].startsWith('http')) {
-  var couchdbUrl = url.parse(process.argv[process.argv.length - 1]);
+var start = function (couchdbUrl, deligation) {
   var pathname = couchdbUrl.pathname || '/';
   if (pathname[pathname.length - 1] != '/') {
     pathname += '/';
@@ -142,7 +137,9 @@ if (process.argv[process.argv.length - 1].startsWith('http')) {
   }
   
   finished = [];
-  var deligation = new Deligation(href);
+  if (!deligation) {
+    var deligation = new Deligation(href);
+  }
   
   var attachAllDbs = function (dbs) {
     dbs.forEach(function(dbname) {
@@ -167,6 +164,16 @@ if (process.argv[process.argv.length - 1].startsWith('http')) {
     })
   }  
       
-  alldbs(couchdbUrl.port, couchdbUrl.hostname, pathname).addCallback(attachAllDbs)  
-  
+  alldbs(couchdbUrl.port, couchdbUrl.hostname, pathname).addCallback(attachAllDbs)
+}
+
+exports.start = start;
+exports.Deligation = Deligation;
+exports.alldbs = alldbs;
+exports.loadModule = loadModule;
+exports.getDesignDoc = getDesignDoc;
+
+if (inArray(process.argv, __filename) && process.argv[process.argv.length - 1].startsWith('http')) {
+  var couchdbUrl = url.parse(process.argv[process.argv.length - 1]);
+  start(couchdbUrl);
 }
