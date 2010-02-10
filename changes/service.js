@@ -74,15 +74,8 @@ Deligation.prototype.designDocChange = function (dbname, id) {
       };
     })
   }
-  
-  var module = d.modules[dbname+'/'+id];  
-  if ( module ) {
-    if (module.listener) {
-      d.changes[dbname].removeListener("change", module.listener)
-    }
-    delete module
-    delete d.modules[dbname+'/'+id];
-  }
+    
+  d.cleanup(dbname, id);
   getDesignDoc(this.baseurl, dbname, id).addCallback(function(doc){
     d.handleDesignDoc(dbname, doc);
   });
@@ -100,6 +93,17 @@ Deligation.prototype.handleDesignDoc = function (dbname, doc) {
       .addErrback(function() {
         sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id));
       })
+  }
+}
+Deligation.prototype.cleanup = function (dbname, id) {
+  var d = this;
+  var module = d.modules[dbname+'/'+id];
+  if (module) {
+    if (module.listener) {
+      d.changes[dbname].removeListener("change", module.listener)
+    }
+    delete module
+    delete d.modules[dbname+'/'+id];
   }
 }
 
