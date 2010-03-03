@@ -69,7 +69,7 @@ Deligation.prototype.designDocChange = function (dbname, id) {
   if (!this.changes[dbname]) {
     this.changes[dbname] = new listener.Changes(this.baseurl+dbname);
     this.changes[dbname].addListener("change", function(doc) {
-      if (doc.id.startsWith('_design')) {
+      if (doc.id && doc.id.startsWith('_design')) {
         d.designDocChange(dbname, doc.id);
       };
     })
