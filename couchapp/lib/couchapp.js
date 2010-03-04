@@ -1,6 +1,25 @@
 var sys = require('sys'),
-    path = require('path');
+    path = require('path'),
+    sync = require('./sync');
 
+
+function normalizeDesignDoc (ddoc, parent) {
+  for (x in ddoc) {
+    if (parent || x[0] != '_') {
+      if (typeof ddoc[x] == 'function') {
+        ddoc[x] = ddoc[x].toString();
+      } else if (typeof(ddoc[x]) == 'object' && ddoc[x].length === undefined){
+        normalizeDesignDoc(ddoc[x], ddoc)
+      }
+    }
+  }
+  return ddoc;
+}
+
+exports.loadAttachments = sync.loadAttachments;
+exports.sync = function (ddoc, uri, callback) {
+  return sync.sync(normalizeDesignDoc(ddoc), uri, undefined, callback)
+}
 exports.addModuleTree = function () {}
 
 var abspath = function (pathname) {
