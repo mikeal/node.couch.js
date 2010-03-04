@@ -1,7 +1,7 @@
 var sys = require('sys'),
     path = require('path'),
+    fs = require('fs'),
     sync = require('./sync');
-
 
 function normalizeDesignDoc (ddoc, parent) {
   for (x in ddoc) {
@@ -16,99 +16,48 @@ function normalizeDesignDoc (ddoc, parent) {
   return ddoc;
 }
 
-exports.loadAttachments = sync.loadAttachments;
+function walk (dir, files) {
+  if (!files) { files = [] }
+  newfiles = fs.readdirSync(dir);
+  newfiles.forEach(function (f) {
+    var f = path.join(dir, f)
+    // exclude . files
+    if (f[0] == '.') {return;}
+    var stats = fs.statSync(f)
+    if (stats.isDirectory()) {
+      walk(f, files);
+    } else if (stats.isFile()) {
+      files.push(f);
+    }
+  })
+  return files;
+}
+
+function loadAttachments (ddoc, dir) {
+  var files = walk(dir);
+  if (!ddoc._attachments) {
+    ddoc._attachments = {};
+  }
+  files.forEach(function (f) {
+    f = f.slice(dir.length);
+    ddoc._attachments[f] = function (callback) {
+      fs.readFile(path.join(dir, f), function (error, data) {
+        if (error) {
+          sys.puts(sys.inspect([dir, f]))
+          callback(error);
+        } else {
+          callback(undefined, false, mimetypes.lookup(path.extname(f).slice(1)), data.length, function (c) {c(undefined, data)})
+        }
+      })
+    }
+  })
+}
+
+exports.loadAttachments = loadAttachments;
+
 exports.sync = function (ddoc, uri, callback) {
   return sync.sync(normalizeDesignDoc(ddoc), uri, undefined, callback)
 }
-exports.addModuleTree = function () {}
 
-var abspath = function (pathname) {
-  return path.join(process.env.PWD, path.normalize(pathname));
-}
 
-var optionparser = require('./dep/optionparser')
 
-// sandbox.emit = Views.emit;
-// sandbox.sum = Views.sum;
-// sandbox.log = log;
-// sandbox.toJSON = Couch.toJSON;
-// sandbox.provides = Mime.provides;
-// sandbox.registerType = Mime.registerType;
-// sandbox.start = Render.start;
-// sandbox.send = Render.send;
-// sandbox.getRow = Render.getRow;
-
-function sum (values) {
-  var rv = 0;
-  for (var i in values) {
-    rv += values[i];
-  }
-  return rv;
-}
-
-var toJSON = JSON.stringify;
-
-function compileMapReduce (func, ddoc, emit) {
-  var source = "(function (emit, sum, toJSON, log) { return (" + func.toString() + ")\n});"
-  return eval(source).apply(ddoc, [emit, sum, toJSON, function () {}])
-}
-
-function testDesignDoc (name, ddoc) {
-  for (view in ddoc.views) {
-    if (ddoc.views[view].map) {
-      var fullname = name+'.views.'+view+'.map';
-      sys.print(fullname+' compilation test')
-      var m = compileMapReduce(ddoc.views[view].map, ddoc, function(k,v){})
-      sys.print('.... passed\n')
-      sys.print(fullname+' empty document test.... ')
-      try { m({}) ; sys.print('passed\n')}
-      catch(e) { sys.print('failed\n')}
-      
-      if (ddoc.tests && ddoc.tests.views && ddoc.tests.views[view] && ddoc.tests.views[view].map) {
-        if (ddoc.tests.views[view].map.expect) {
-          sys.print(fullname+' expect tests.... ')
-          var docs = ddoc.tests.views[view].map.expect[0];
-          var expected = ddoc.tests.views[view].map.expect[1];
-          var results = []; 
-          var emit = function(k,v) {results.push([k,v])}
-          var m = compileMapReduce(ddoc.views[view].map, ddoc, emit);
-          docs.forEach(function(doc) {m(doc)});
-          if (results.length != expected.length) {
-            sys.print('failed (lengths do not match)\n')
-          } else {
-            var p = true;
-            for (var i=0;i<results.length;i+=1) {
-              if (toJSON(results[i]) != toJSON(expected[i])) {
-                sys.print('\nFAIL: ' + toJSON(results[i]) + ' != ' + toJSON(expected[i]) )
-                p = false;
-              }
-            }
-            if (!p) { sys.print('\n') }
-            else {sys.print('passed \n')}
-          }
-        }
-      }
-      
-      
-    }
-  }
-}
-
-var opts = new optionparser.OptionParser();
-opts.addOption('-d', '--design', 'string', 'design', null, "File or directory for design document(s)")
-opts.addOption('-t', '--test', 'bool', 'test', false, "Run tests.")
-opts.addOption('-c', '--couch', 'string', 'couchul', null, "Url to couchdb.")
-
-opts.ifScript(__filename, function (options) {
-  if (options.design) {
-    var design = abspath(options.design);
-    var module = require(design.slice(0, design.length - (path.extname(design).length)))
-    var ddocs = [];
-    for (name in module) {
-      ddocs.push([name, module[name]]);
-    }
-    if (options.test) {
-      ddocs.forEach(function (d) {testDesignDoc(d[0], d[1])})
-    }
-  }
-}, true) 

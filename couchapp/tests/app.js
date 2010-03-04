@@ -13,7 +13,7 @@ ddoc.views.simpleReduce = {
   }
 }
 ddoc.modules = {}
-couchapp.addModuleTree(ddoc.modules, 'modules');
+// couchapp.addModuleTree(ddoc.modules, 'modules');
 
 ddoc.tests = {views:{
   simple:{map:{expect:[ [{'_id':'1'}, {'_id':'2'}], [ ['1',null], ['2',null] ] ]}},

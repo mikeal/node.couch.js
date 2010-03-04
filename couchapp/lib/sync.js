@@ -32,42 +32,6 @@ var request = function (uri, method, body, headers, client, encoding, callback) 
   request.close()
 }
 
-var walk = function (dir, files) {
-  if (!files) { files = [] }
-  newfiles = fs.readdirSync(dir);
-  newfiles.forEach(function (f) {
-    var f = path.join(dir, f)
-    // exclude . files
-    if (f[0] == '.') {return;}
-    var stats = fs.statSync(f)
-    if (stats.isDirectory()) {
-      walk(f, files);
-    } else if (stats.isFile()) {
-      files.push(f);
-    }
-  })
-  return files;
-}
-
-var loadAttachments = function (ddoc, dir) {
-  var files = walk(dir);
-  if (!ddoc._attachments) {
-    ddoc._attachments = {};
-  }
-  files.forEach(function (f) {
-    f = f.slice(dir.length);
-    ddoc._attachments[f] = function (callback) {
-      fs.readFile(path.join(dir, f), function (error, data) {
-        if (error) {
-          sys.puts(sys.inspect([dir, f]))
-          callback(error);
-        } else {
-          callback(undefined, false, mimetypes.lookup(path.extname(f).slice(1)), data.length, function (c) {c(undefined, data)})
-        }
-      })
-    }
-  })
-}
 
 binaryContentTypes = ['application/octet-stream', 'application/ogg', 'application/zip', 'application/pdf',
                       'image/gif', 'image/jpeg', 'image/png', 'image/tiff', 'image/vnd.microsoft.icon',
@@ -161,4 +125,3 @@ var sync = function (ddoc, couchurl, rev, callback) {
 }
 
 exports.sync = sync;
-exports.loadAttachments = loadAttachments;
