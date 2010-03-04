@@ -1,0 +1,8 @@
+{ "name" : "couchdb-changes"
+, "description" : "CouchDB _changes consumer."
+, "version" : "0.2"
+, "author" : "Mikeal Rogers <mikeal.rogers@gmail.com>"
+, "directories" :
+  { "lib" : "lib" }
+, "main" : "./lib/service"
+}

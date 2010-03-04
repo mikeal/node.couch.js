@@ -1,0 +1,8 @@
+{ "name" : "couchapp"
+, "description" : "Utilities for building CouchDB applications."
+, "version" : "0.2"
+, "author" : "Mikeal Rogers <mikeal.rogers@gmail.com>"
+, "directories" :
+  { "lib" : "lib" }
+, "main" : "./lib/couchapp"
+}
