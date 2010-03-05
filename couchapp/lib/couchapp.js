@@ -1,6 +1,7 @@
 var sys = require('sys'),
     path = require('path'),
     fs = require('fs'),
+    mimetypes = require('./dep/mimetypes'),
     sync = require('./sync');
 
 function normalizeDesignDoc (ddoc, parent) {
@@ -53,7 +54,46 @@ function loadAttachments (ddoc, dir) {
   })
 }
 
+function loadFiles (ddoc, dir) {
+  var files = walk(dir);
+  files.forEach(function (f) {
+    var s = f.slice(dir.length).split('/');
+    var obj = ddoc;
+    for (var i=0;i<s.length;i+=1) {
+      if (i == (s.length - 1)) {
+        obj[s[i]] = fs.readFileSync(f);
+      } else if (s[i].length != 0){
+        if (!obj[s[i]]) {
+          obj[s[i]] = {};
+        }
+        obj = obj[s[i]];
+      }
+    }
+  })
+}
+
+function loadModules (ddoc, dir) {
+  var files = walk(dir);
+  files.forEach(function (f) {
+    var s = f.slice(dir.length).split('/');
+    var obj = ddoc;
+    for (var i=0;i<s.length;i+=1) {
+      if (i == (s.length - 1)) {
+        obj[s[i].slice(0, s[i].length - path.extname(f).length)] = fs.readFileSync(f);
+      } else if (s[i].length != 0){
+        if (!obj[s[i]]) {
+          obj[s[i]] = {};
+        }
+        obj = obj[s[i]];
+      }
+    }
+  })
+}
+
+
 exports.loadAttachments = loadAttachments;
+exports.loadFiles = loadFiles;
+exports.loadModules = loadModules;
 
 exports.sync = function (ddoc, uri, callback) {
   return sync.sync(normalizeDesignDoc(ddoc), uri, undefined, callback)
