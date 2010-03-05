@@ -20,9 +20,62 @@ function sum (values) {
   return rv;
 }
 
+var resolveModule = function(names, parent, current) {
+  if (names.length == 0) {
+    if (typeof current != "string") {
+      throw ["error","invalid_require_path",
+        'Must require a JavaScript string, not: '+(typeof current)];
+    }
+    return [current, parent];
+  }
+  // we need to traverse the path
+  var n = names.shift();
+  if (n == '..') {
+    if (!(parent && parent.parent)) {
+      throw ["error", "invalid_require_path", 'Object has no parent '+JSON.stringify(current)];
+    }
+    return resolveModule(names, parent.parent.parent, parent.parent);
+  } else if (n == '.') {
+    if (!parent) {
+      throw ["error", "invalid_require_path", 'Object has no parent '+JSON.stringify(current)];
+    }
+    return resolveModule(names, parent.parent, parent);
+  }
+  if (!current[n]) {
+    throw ["error", "invalid_require_path", 'Object has no property "'+n+'". '+JSON.stringify(current)];
+  }
+  var p = current
+  current = current[n];
+  current.parent = p;
+  return resolveModule(names, p, current)
+}
+
 function compileMapReduce (func, ddoc, emit) {
   var source = "(function (emit, sum, toJSON, log) { return (" + func.toString() + ")\n});"
-  return eval(source).apply(ddoc, [emit, sum, toJSON, function () {}])
+  return process.compile(source).apply(ddoc, [emit, sum, toJSON, function () {}]);
+}
+
+function compileView (func, ddoc, start, send, getRow) {
+  var envKeys = ['sum', 'toJSON', 'log', 'provides', 'registerType', 
+                 'start', 'send', 'getRow', 'require'];
+  var source = "function (" + envKeys.join(', ') + ") { return (" + func.toString() + ")\n});"
+  var empty = function () {};
+  var require = function(name, parent) {
+    var exports = {};
+    var resolved = resolveModule(name.split('/'), parent, ddoc);
+    var source = resolved[0]; 
+    parent = resolved[1];
+    var s = "function (exports, require) { " + source + " }";
+    try {
+      var func = process.compile(s);
+      func.apply(ddoc, [exports, function(name) {return require(name, parent, source)}]);
+    } catch(e) { 
+      throw ["error","compilation_error","Module require('"+name+"') raised error "+e.toSource()]; 
+    }
+    return exports;
+  }
+  var envValues = [sum, toJSON, empty, empty, empty, start, send, getRow, require]
+  return process.compile(source).apply(ddoc, envValues);
 }
 
 function testDesignDoc (name, ddoc) {
