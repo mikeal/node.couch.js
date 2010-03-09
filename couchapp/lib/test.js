@@ -52,7 +52,8 @@ var resolveModule = function(names, parent, current) {
 
 function compileMapReduce (func, ddoc, emit) {
   var source = "(function (emit, sum, toJSON, log) { return (" + func.toString() + ")\n});"
-  return process.compile(source).apply(ddoc, [emit, sum, toJSON, function () {}]);
+  // TODO : make this work without a file
+  return process.compile(source, 'nofile').apply(ddoc, [emit, sum, toJSON, function () {}]);
 }
 
 function compileView (func, ddoc, start, send, getRow) {
