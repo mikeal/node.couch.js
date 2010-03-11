@@ -3,6 +3,7 @@ var sys = require('sys'),
     http = require('http'),
     path = require('path'),
     url = require('url'),
+    base64 = require('./dep/base64'),
     mimetypes = require('./dep/mimetypes');
 
 var request = function (uri, method, body, headers, client, encoding, callback) {
@@ -12,8 +13,20 @@ var request = function (uri, method, body, headers, client, encoding, callback) 
   if (!headers) {
     headers = {'content-type':'application/json', 'accept':'application/json'};
   }
-  if (!client) {
+  if (!headers.host) {
+    headers.host = uri.hostname;
+    if (uri.port) {
+      headers.host += (':'+uri.port)
+    }
+  }
+  if (!uri.port) {
+    uri.port = 80;
+  }
+  if (!client) { 
     client = http.createClient(uri.port, uri.hostname);
+  }
+  if (uri.auth) {
+    headers.authorization = "Basic " + base64.encode(uri.auth);
   }
   var pathname = uri.search ? (uri.pathname + uri.search) : uri.pathname
   var request = client.request(method, uri.pathname, headers)
@@ -31,7 +44,6 @@ var request = function (uri, method, body, headers, client, encoding, callback) 
   })
   request.close()
 }
-
 
 binaryContentTypes = ['application/octet-stream', 'application/ogg', 'application/zip', 'application/pdf',
                       'image/gif', 'image/jpeg', 'image/png', 'image/tiff', 'image/vnd.microsoft.icon',
@@ -61,7 +73,6 @@ var sync = function (ddoc, couchurl, rev, callback) {
   if (ddoc._id.slice(0, '_design/'.length) != '_design/') {
     ddoc._id = '_design/' + ddoc._id
   }
-  
   if (!ddoc._rev && rev === undefined) {
     var uri = (couchurl[couchurl.length - 1] == '/') ? (couchurl + ddoc._id) : (couchurl + '/' + ddoc._id)
     request(uri, "GET", null, undefined, undefined, undefined, function (error, response, body) {
@@ -88,9 +99,9 @@ var sync = function (ddoc, couchurl, rev, callback) {
     } else {
       var method = 'POST'
     }
-    
+
     request(couchurl, method, JSON.stringify(ddoc), undefined, undefined, undefined, function (error, response, body){
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201) {        
         var uri = url.parse(couchurl)
         ddocpath = dbpath + ddoc._id
         function syncAttachments (rev, attachments, client) {
@@ -118,7 +129,8 @@ var sync = function (ddoc, couchurl, rev, callback) {
         syncAttachments(JSON.parse(body)['rev'], attachments, http.createClient(uri.port, uri.hostname))
 
       } else {
-        throw "Could not create/update ddoc.";
+        sys.puts('Could not create/update ddoc\n Status:: '+(response.statusCode)+'\n Body::\n'+body);
+        process.exit();
       }
     })
   }
