@@ -57,24 +57,23 @@ var Changes = function (uri, options) {
   
   var start = function () {
     c.h.request("GET", c.url.pathname+'?'+querystring.stringify(options), {'accept':'application/json'})
-      .finish(function(response) {response.addListener('body', changesHandler)});
+      .addListener("response", function(response) {response.addListener('data', changesHandler)});
   }
   
   if (!options.since) {
-    var getSeq = function () {
-      var p = new events.Promise();
+    var getSeq = function (callback) {
       c.h.request("GET", c.url.pathname.replace('/_changes', ''), {'accept':'application/json'})
-        .finish(function(response) {
+        .addListener("response", function(response) {
           buffer = '';
-          response.addListener("body", function(data){buffer += data;})
-          response.addListener("complete", function () {
+          response.addListener("data", function(data){buffer += data;})
+          response.addListener("end", function () {
             options.since = JSON.parse(buffer)['update_seq'];
-            p.emitSuccess();
+            callback();
           })
         })
       return p;
     }
-    getSeq().addCallback(start)
+    getSeq(start);
   } else {
     start()
   }

@@ -3,58 +3,76 @@ var listener = require('./listener'),
     events = require('events'),
     sys = require('sys'),
     path = require('path'),
-    posix = require('posix'),
+    fs = require('fs'),
     http = require('http');
 
-var loadModule = function (content, name) {
-  var p = new events.Promise();
-  var wrapper = "(function (exports, require, module, __filename, __dirname) { "
+var request = function (uri, method, headers, callback) {
+  var uri = url.parse(uri);
+  var client = http.createClient(uri.port, uri.hostname);
+  var pathname = uri.search ? uri.pathname + uri.search : uri.pathname;
+  var request = client.request(method, pathname, headers);
+  request.addListener("response", function (response) {
+    var buffer = '';
+    if (response.statusCode !== 200) {
+      callback(new Error("Bad status code."))
+    }
+    response.addListener("data", function(data){buffer += data});
+    response.addListener("end", function(){
+      obj = JSON.parse(buffer);
+      callback(undefined, obj);
+    });
+  })
+  client.addListener("error", function (e) {
+    callback(e);
+  })
+  request.end();
+}
+
+var loadModule = function (content, name, callback) {
+  var wrapper = "(function (module, exports, require, module, __filename, __dirname) { "
               + content
               + "\n});";
-  var exports = {};
+  var module = {exports:{},id:'changes'}
   self = this;
   setTimeout( function () {
     try {
       var compiledWrapper = process.compile(wrapper, name);
-      compiledWrapper.apply(exports, [exports, require, self]);
-      p.emitSuccess(exports);
+      compiledWrapper.apply(module, module.exports, [exports, require, self]);
+      callback(undefined, module.exports);
     } catch (e) {
-      p.emitError(e)
+      callback(e);
     }
   }, 0)
   return p;
 }
 
-var alldbs = function (port, hostname, pathname) {
-  var p = new events.Promise();
-  var client = http.createClient(port, hostname);
-  var request = client.request('GET', pathname + '_all_dbs', {'accept':'application/json'});
-  request.finish(function(response){
-    var buffer = '';
-    response.addListener("body", function(data){buffer += data});
-    response.addListener("complete", function(){
-      dbs = JSON.parse(buffer);
-      p.emitSuccess(dbs);
-    })
-  })
-  return p
-}
-
-var getDesignDoc = function (baseurl, dbname, id) {
-  var p = new events.Promise();
-  var uri = url.parse(baseurl);
-  var client = http.createClient(uri.port, uri.hostname)
-  var request = client.request('GET', '/'+dbname+'/'+id, {'accept':'application/json'});
-  request.finish(function(response){
-    var buffer = '';
-    response.addListener("body", function(data){buffer += data});
-    response.addListener("complete", function(){
-      dbs = JSON.parse(buffer);
-      p.emitSuccess(dbs);
-    })
-  })
-  return p;
-}
+// var alldbs = function (dburi, callback) {
+//   var request = request();
+//   request.addListener("response", function (response) {
+//     var buffer = '';
+//     response.addListener("body", function(data){buffer += data});
+//     response.addListener("end", function(){
+//       dbs = JSON.parse(buffer);
+//       callback(undefined, dbs);
+//     })
+//   })
+//   request.end();
+// }
+// 
+// var getDesignDoc = function (baseurl, dbname, id, callback) {
+//   var uri = url.parse(baseurl);
+//   var client = http.createClient(uri.port, uri.hostname)
+//   var request = client.request('GET', '/'+dbname+'/'+id, {'accept':'application/json'});
+//   request.addListener("response", function (response) {
+//     var buffer = '';
+//     response.addListener("body", function(data){buffer += data});
+//     response.addListener("end", function(){
+//       dbs = JSON.parse(buffer);
+//       callback(undefined, dbs);
+//     })
+//   })
+//   request.end();
+// }
 
 var Deligation = function (baseurl) {
   if (baseurl[baseurl.length - 1] != '/') {
@@ -76,23 +94,23 @@ Deligation.prototype.designDocChange = function (dbname, id) {
   }
     
   d.cleanup(dbname, id);
-  getDesignDoc(this.baseurl, dbname, id).addCallback(function(doc){
+  request( this.baseurl+dbname+'/'+id, 'GET', {'accept':'application/json'}, function(error, doc) {
     d.handleDesignDoc(dbname, doc);
-  });
+  })
 }
 Deligation.prototype.handleDesignDoc = function (dbname, doc) {
   var d = this;
   if (doc.changes) {
-    loadModule(doc.changes, dbname+'/'+doc._id+'.changes')
-      .addCallback(function(module) {
+    loadModule(doc.changes, dbname+'/'+doc._id+'.changes', function (error, module) {
+      if (error) {
+        sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id));
+      } else {
         if (module.listener) {
           d.changes[dbname].addListener("change", module.listener);
         }
         d.modules[dbname+'/'+doc._id] = module;
-      })
-      .addErrback(function() {
-        sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id));
-      })
+      }
+    })
   }
 }
 Deligation.prototype.cleanup = function (dbname, id) {
@@ -107,23 +125,22 @@ Deligation.prototype.cleanup = function (dbname, id) {
   }
 }
 
-var getDesignDocs = function (port, hostname, dbpath) {
-  var p = new events.Promise();
-  var client = http.createClient(port, hostname);
-  var ddocpath = dbpath+'/_all_docs?startkey=%22_design%2F%22&endkey=%22_design0%22';
-  var request = client.request('GET', ddocpath, {'accept':'application/json'});
-  request.finish(function(response) {
-    var buffer = '';
-    response.addListener("body", function(data){buffer += data});
-    response.addListener("complete", function(){
-      resp = JSON.parse(buffer);
-      docs = [];
-      resp.rows.forEach(function(doc) {docs.push(doc)})
-      p.emitSuccess(docs);
-    })  
-  })
-  return p;
-}
+// var getDesignDocs = function (port, hostname, dbpath, callback) {
+//   var client = http.createClient(port, hostname);
+//   var ddocpath = dbpath+'/_all_docs?startkey=%22_design%2F%22&endkey=%22_design0%22';
+//   var request = client.request('GET', ddocpath, );
+//   request.addListener("response", function (response) {
+//     var buffer = '';
+//     response.addListener("body", function(data){buffer += data});
+//     response.addListener("end", function(){
+//       resp = JSON.parse(buffer);
+//       docs = [];
+//       resp.rows.forEach(function(doc) {docs.push(doc)})
+//       callback(undefined, docs);
+//     })  
+//   })
+//   request.end();
+// }
 
 var inArray = function (array, obj) {
   for (i = 0; i < array.length; i+=1) {
@@ -134,54 +151,54 @@ var inArray = function (array, obj) {
   return false;
 }
 
-var start = function (couchdbUrl, deligation) {
-  var pathname = couchdbUrl.pathname || '/';
-  if (pathname[pathname.length - 1] != '/') {
-    pathname += '/';
-  }
-  var href = couchdbUrl.href;
-  if (href[href.length - 1] != '/') {
-    href += '/';
+var start = function (baseuri, deligation) {
+  if (baseuri[baseuri.length - 1] !== '/') {
+    baseuri = baseuri + '/'
   }
   
-  finished = [];
   if (!deligation) {
-    var deligation = new Deligation(href);
+    var deligation = new Deligation(baseuri);
   }
   
-  var attachAllDbs = function (dbs) {
+  var attachAllDbs = function (error, dbs) {
+    if (error) {
+      throw new Error(error)
+    }
     dbs.forEach(function(dbname) {
-      getDesignDocs(couchdbUrl.port, couchdbUrl.hostname, pathname+dbname)
-        .addCallback(function(docs) {
-          if (docs.length != 0) {
-            docs.forEach(function(doc) {deligation.designDocChange(dbname, doc.id)})
-          } 
-          finished.push(dbname);
-          if (finished.length == dbs.length) {
-            setInterval(function ()  {
-              alldbs(couchdbUrl.port, couchdbUrl.hostname, pathname).addCallback(function(dbs) {
-                  var newdbs = [];
-                  dbs.forEach( function(db) {
-                    if (!deligation.changes[db]) { newdbs.push(db) }
-                  });
-                  attachAllDbs(newdbs);
-              })  
-            }, 60 * 1000);
-          }
-        })
+      if (dbname.indexOf('/') !== -1) {
+        // workaround bug in dbs with slashes in the name not having _all_docs
+        return;
+      } 
+      request(baseuri+dbname+'/_all_docs?startkey=%22_design%2F%22&endkey=%22_design0%22', 
+              "GET", {'accept':'application/json'}, function (error, ddocs) {
+        if (error) {
+          throw error;
+        }
+        if (ddocs.length != 0) {
+          ddocs.rows.forEach(function(doc) {deligation.designDocChange(dbname, doc.id)})
+        } 
+
+      })
     })
-  }  
-      
-  alldbs(couchdbUrl.port, couchdbUrl.hostname, pathname).addCallback(attachAllDbs)
+    setInterval(function ()  {
+      request(baseuri+'_all_dbs', 'GET', {'accept':'application/json'}, function(error, dbs){
+        var newdbs = [];
+        dbs.forEach( function(db) {
+          if (!deligation.changes[db]) { newdbs.push(db) }
+        });
+        attachAllDbs(undefined, newdbs);
+      })  
+    }, 60 * 1000);
+  } 
+  request(baseuri+'_all_dbs', 'GET', {'accept':'application/json'}, attachAllDbs);
 }
 
 exports.start = start;
 exports.Deligation = Deligation;
-exports.alldbs = alldbs;
 exports.loadModule = loadModule;
-exports.getDesignDoc = getDesignDoc;
+exports.request = request
 
-if (inArray(process.argv, __filename) && process.argv[process.argv.length - 1].startsWith('http')) {
-  var couchdbUrl = url.parse(process.argv[process.argv.length - 1]);
+if (require.main == module) {
+  var couchdbUrl = process.argv[process.argv.length - 1];
   start(couchdbUrl);
 }
