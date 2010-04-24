@@ -96,16 +96,20 @@ Deligation.prototype.designDocChange = function (dbname, id) {
     
   d.cleanup(dbname, id);
   request( this.baseurl+dbname+'/'+id, 'GET', {'accept':'application/json'}, function(error, doc) {
-    d.handleDesignDoc(dbname, doc);
+    d.handleDesignDoc(d.baseurl, dbname, doc);
   })
 }
-Deligation.prototype.handleDesignDoc = function (dbname, doc) {
+Deligation.prototype.handleDesignDoc = function (baseurl, dbname, doc) {
   var d = this;
   if (doc.changes) {
     loadModule(doc.changes, dbname+'/'+doc._id+'.changes', function (error, module) {
       if (error) {
         sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id)+' '+JSON.stringify(error));
       } else {
+        if (module.init) {
+          module.init( baseurl + dbname );
+        }
+
         if (module.listener) {
           d.changes[dbname].addListener("change", module.listener);
         }
@@ -120,6 +124,10 @@ Deligation.prototype.cleanup = function (dbname, id) {
   if (module) {
     if (module.listener) {
       d.changes[dbname].removeListener("change", module.listener)
+    }
+
+    if (module.cleanup) {
+      module.cleanup();
     }
     delete module
     delete d.modules[dbname+'/'+id];
