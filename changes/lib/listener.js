@@ -2,7 +2,7 @@ var sys = require('sys'),
     http = require('http'), 
     url = require('url'),
     events = require('events'),
-    querystring = require("querystring");
+    querystring = require('querystring');
 
 String.prototype.startsWith = function(str) {return (this.match("^"+str)==str)}
 String.prototype.endsWith = function(str) {return (this.match(str+"$")==str)};
@@ -16,11 +16,13 @@ var Changes = function (uri, options) {
   if (!options) {
     var options = {}
   }
-  options.feed = 'continuous'
+  options.feed = 'continuous';
+  options.include_docs = 'true';
   this.url = url.parse(uri);
   this.options = options;
   this.h = http.createClient(this.url.port, this.url.hostname);
-  this.buffer = ''
+  this.buffer = '';
+
   var c = this;
   // sys.puts(this.url.pathname+'?'+querystring.stringify(options))
   
