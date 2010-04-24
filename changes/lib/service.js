@@ -189,7 +189,7 @@ var start = function (baseuri, deligation) {
 
       })
     })
-    setInterval(function ()  {
+    setTimeout(function ()  {
       request(baseuri+'_all_dbs', 'GET', {'accept':'application/json'}, function(error, dbs){
         var newdbs = [];
         dbs.forEach( function(db) {
