@@ -93,11 +93,13 @@ Deligation.prototype.designDocChange = function (dbname, id) {
       };
     })
   }
-    
-  d.cleanup(dbname, id);
-  request( this.baseurl+dbname+'/'+id, 'GET', {'accept':'application/json'}, function(error, doc) {
-    d.handleDesignDoc(d.baseurl, dbname, doc);
-  })
+
+  if (id) {
+    d.cleanup(dbname, id);
+    request( this.baseurl+dbname+'/'+id, 'GET', {'accept':'application/json'}, function(error, doc) {
+      d.handleDesignDoc(d.baseurl, dbname, doc);
+    });
+  }
 }
 Deligation.prototype.handleDesignDoc = function (baseurl, dbname, doc) {
   var d = this;
@@ -183,9 +185,13 @@ var start = function (baseuri, deligation) {
         if (error) {
           throw error;
         }
-        if (ddocs.length != 0) {
+        if (ddocs.rows.length != 0) {
+          // process each design document, and listen for changes
           ddocs.rows.forEach(function(doc) {deligation.designDocChange(dbname, doc.id)})
-        } 
+        } else {
+          // listen for a new design document
+          deligation.designDocChange(dbname);
+        }
 
       })
     })
