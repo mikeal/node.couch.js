@@ -108,15 +108,6 @@ Deligation.prototype.cleanup = function (dbname, id) {
   }
 }
 
-var inArray = function (array, obj) {
-  for (i = 0; i < array.length; i+=1) {
-    if (array[i] == obj) {
-      return true;
-    }
-  }
-  return false;
-}
-
 var start = function (baseuri, deligation) {
   if (baseuri[baseuri.length - 1] !== '/') {
     baseuri = baseuri + '/'
