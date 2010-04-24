@@ -47,34 +47,6 @@ var loadModule = function (content, name, callback) {
   return p;
 }
 
-// var alldbs = function (dburi, callback) {
-//   var request = request();
-//   request.addListener("response", function (response) {
-//     var buffer = '';
-//     response.addListener("body", function(data){buffer += data});
-//     response.addListener("end", function(){
-//       dbs = JSON.parse(buffer);
-//       callback(undefined, dbs);
-//     })
-//   })
-//   request.end();
-// }
-// 
-// var getDesignDoc = function (baseurl, dbname, id, callback) {
-//   var uri = url.parse(baseurl);
-//   var client = http.createClient(uri.port, uri.hostname)
-//   var request = client.request('GET', '/'+dbname+'/'+id, {'accept':'application/json'});
-//   request.addListener("response", function (response) {
-//     var buffer = '';
-//     response.addListener("body", function(data){buffer += data});
-//     response.addListener("end", function(){
-//       dbs = JSON.parse(buffer);
-//       callback(undefined, dbs);
-//     })
-//   })
-//   request.end();
-// }
-
 var Deligation = function (baseurl) {
   if (baseurl[baseurl.length - 1] != '/') {
     baseurl += '/';
@@ -135,23 +107,6 @@ Deligation.prototype.cleanup = function (dbname, id) {
     delete d.modules[dbname+'/'+id];
   }
 }
-
-// var getDesignDocs = function (port, hostname, dbpath, callback) {
-//   var client = http.createClient(port, hostname);
-//   var ddocpath = dbpath+'/_all_docs?startkey=%22_design%2F%22&endkey=%22_design0%22';
-//   var request = client.request('GET', ddocpath, );
-//   request.addListener("response", function (response) {
-//     var buffer = '';
-//     response.addListener("body", function(data){buffer += data});
-//     response.addListener("end", function(){
-//       resp = JSON.parse(buffer);
-//       docs = [];
-//       resp.rows.forEach(function(doc) {docs.push(doc)})
-//       callback(undefined, docs);
-//     })  
-//   })
-//   request.end();
-// }
 
 var inArray = function (array, obj) {
   for (i = 0; i < array.length; i+=1) {
