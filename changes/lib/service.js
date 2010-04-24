@@ -16,6 +16,7 @@ var request = function (uri, method, headers, callback) {
     if (response.statusCode !== 200) {
       callback(new Error("Bad status code."))
     }
+    response.setEncoding('utf8');
     response.addListener("data", function(data){buffer += data});
     response.addListener("end", function(){
       obj = JSON.parse(buffer);
@@ -29,7 +30,7 @@ var request = function (uri, method, headers, callback) {
 }
 
 var loadModule = function (content, name, callback) {
-  var wrapper = "(function (module, exports, require, module, __filename, __dirname) { "
+  var wrapper = "(function (exports, require, module, __filename, __dirname) { "
               + content
               + "\n});";
   var module = {exports:{},id:'changes'}
@@ -37,7 +38,7 @@ var loadModule = function (content, name, callback) {
   setTimeout( function () {
     try {
       var compiledWrapper = process.compile(wrapper, name);
-      compiledWrapper.apply(module, module.exports, [exports, require, self]);
+      compiledWrapper.apply(module, [module.exports, require, self]);
       callback(undefined, module.exports);
     } catch (e) {
       callback(e);
@@ -103,7 +104,7 @@ Deligation.prototype.handleDesignDoc = function (dbname, doc) {
   if (doc.changes) {
     loadModule(doc.changes, dbname+'/'+doc._id+'.changes', function (error, module) {
       if (error) {
-        sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id));
+        sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id)+' '+JSON.stringify(error));
       } else {
         if (module.listener) {
           d.changes[dbname].addListener("change", module.listener);

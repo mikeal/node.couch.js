@@ -19,7 +19,7 @@ var Changes = function (uri, options) {
   options.feed = 'continuous'
   this.url = url.parse(uri);
   this.options = options;
-  this.h = http.createClient(this.url.port, url.host);
+  this.h = http.createClient(this.url.port, this.url.hostname);
   this.buffer = ''
   var c = this;
   // sys.puts(this.url.pathname+'?'+querystring.stringify(options))
@@ -56,8 +56,11 @@ var Changes = function (uri, options) {
   }
   
   var start = function () {
-    c.h.request("GET", c.url.pathname+'?'+querystring.stringify(options), {'accept':'application/json'})
-      .addListener("response", function(response) {response.addListener('data', changesHandler)});
+    c.h.request("GET", c.url.pathname+'?'+querystring.stringify(options), {'accept':'application/jso'})
+      .addListener("response", function(response) {
+        response.setEncoding('utf8');
+        response.addListener('data', changesHandler)
+      }).end();
   }
   
   if (!options.since) {
@@ -65,12 +68,14 @@ var Changes = function (uri, options) {
       c.h.request("GET", c.url.pathname.replace('/_changes', ''), {'accept':'application/json'})
         .addListener("response", function(response) {
           buffer = '';
+          response.setEncoding('utf8');
           response.addListener("data", function(data){buffer += data;})
           response.addListener("end", function () {
             options.since = JSON.parse(buffer)['update_seq'];
             callback();
           })
-        })
+        }).end();
+     
       return p;
     }
     getSeq(start);
