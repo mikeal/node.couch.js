@@ -50,13 +50,21 @@ var Changes = function (uri, options) {
             c.buffer = chunk;
           } 
         }
-        if (obj) { c.emit('change', obj); }
+        if (obj) {
+          if (obj.last_seq) {
+            // connection timed out, restart
+            options.since = obj.last_seq;
+            start();
+          } else {
+            c.emit('change', obj);
+          }
+        }
       } 
     }
   }
   
   var start = function () {
-    c.h.request("GET", c.url.pathname+'?'+querystring.stringify(options), {'accept':'application/jso'})
+    c.h.request("GET", c.url.pathname+'?'+querystring.stringify(options), {'accept':'application/json'})
       .addListener("response", function(response) {
         response.setEncoding('utf8');
         response.addListener('data', changesHandler)
