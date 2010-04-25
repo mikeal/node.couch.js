@@ -67,9 +67,10 @@ Deligation.prototype.designDocChange = function (dbname, id) {
   }
 
   if (id) {
-    d.cleanup(dbname, id);
-    request( this.baseurl+dbname+'/'+id, 'GET', {'accept':'application/json'}, function(error, doc) {
-      d.handleDesignDoc(d.baseurl, dbname, doc);
+    d.cleanup(dbname, id, function() {
+      request( d.baseurl+dbname+'/'+id, 'GET', {'accept':'application/json'}, function(error, doc) {
+        d.handleDesignDoc(d.baseurl, dbname, doc);
+      });
     });
   }
 }
@@ -81,7 +82,7 @@ Deligation.prototype.handleDesignDoc = function (baseurl, dbname, doc) {
         sys.puts('Cannot import changes listener from '+JSON.stringify(doc._id)+' '+JSON.stringify(error));
       } else {
         if (module.init) {
-          module.init( baseurl + dbname );
+          module.init( baseurl + dbname, doc );
         }
 
         if (module.listener) {
@@ -92,7 +93,7 @@ Deligation.prototype.handleDesignDoc = function (baseurl, dbname, doc) {
     })
   }
 }
-Deligation.prototype.cleanup = function (dbname, id) {
+Deligation.prototype.cleanup = function (dbname, id, callback) {
   var d = this;
   var module = d.modules[dbname+'/'+id];
   if (module) {
@@ -100,11 +101,19 @@ Deligation.prototype.cleanup = function (dbname, id) {
       d.changes[dbname].removeListener("change", module.listener)
     }
 
-    if (module.cleanup) {
-      module.cleanup();
+    function finishcleanup() {
+      delete module
+      delete d.modules[dbname+'/'+id];
+      callback();
     }
-    delete module
-    delete d.modules[dbname+'/'+id];
+
+    if (module.cleanup) {
+      module.cleanup( finishcleanup );
+    } else {
+      finishcleanup();
+    }
+  } else {
+    callback();
   }
 }
 
