@@ -14,7 +14,7 @@ var Changes = function (uri, options) {
     uri += '_changes';
   }
   if (!options) {
-    var options = {feed:'continuous', include_docs:true}
+    var options = {feed:'continuous', include_docs:'true'};
   }
   this.url = url.parse(uri);
   this.options = options;
