@@ -14,10 +14,8 @@ var Changes = function (uri, options) {
     uri += '_changes';
   }
   if (!options) {
-    var options = {}
+    var options = {feed:'continuous', include_docs:true}
   }
-  options.feed = 'continuous';
-  options.include_docs = 'true';
   this.url = url.parse(uri);
   this.options = options;
   this.h = http.createClient(this.url.port, this.url.hostname);
