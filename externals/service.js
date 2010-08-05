@@ -76,12 +76,6 @@ var dataHandler = function (data, callback) {
   }
 }
 
-var couchRequestToJSGI = function (obj, deligation) {
-  
-  
-  
-}
-
 var application = function (obj, deligation) {
   // sys.puts(JSON.stringify({code:200,json:obj}))
   var req = new EventEmitter();
@@ -96,12 +90,7 @@ var application = function (obj, deligation) {
   
 }
 
-var inArray = function (array, obj) {
-  for (i = 0; i < array.length; i+=1) {
-    if (array[i] == obj) { return true; }
-  } return false;
-}
-if (inArray(process.argv, __filename) && process.argv[process.argv.length - 1].startsWith('http')) {
+if (require.main === module && process.argv[process.argv.length - 1].startsWith('http')) {
   var deligation = start(process.argv[process.argv.length - 1]);
   
   process.stdio.addListener("data", function(data) {

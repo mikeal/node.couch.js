@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var sys = require("sys");
-var posix = require("posix");
+var fs = require("fs");
 
 var store = {};
 current_functions = [];
