@@ -2,7 +2,8 @@ var sys = require('sys'),
     http = require('http'), 
     url = require('url'),
     events = require('events'),
-    querystring = require('querystring');
+    request = require('request'),
+    
 
 String.prototype.startsWith = function(str) {return (this.match("^"+str)==str)}
 String.prototype.endsWith = function(str) {return (this.match(str+"$")==str)};
@@ -25,6 +26,8 @@ var Changes = function (uri, options) {
   // sys.puts(this.url.pathname+'?'+querystring.stringify(options))
   
   var changesHandler = function (data) {
+    data = data.toString();
+    sys.puts("*"+data+"*")
     if (data.indexOf('\n')) {
       var chunks = data.split('\n');
       if (c.buffer) {
@@ -73,17 +76,12 @@ var Changes = function (uri, options) {
   
   if (!options.since) {
     var getSeq = function (callback) {
-      c.h.request("GET", c.url.pathname.replace('/_changes', ''), {'accept':'application/json'})
-        .addListener("response", function(response) {
-          buffer = '';
-          response.setEncoding('utf8');
-          response.addListener("data", function(data){buffer += data;})
-          response.addListener("end", function () {
-            options.since = JSON.parse(buffer)['update_seq'];
-            callback();
-          })
-        }).end();
-     
+      request({uri:c.url.pathname.replace('/_changes', ''), 
+              headers:{'accept':'application/json'}}, 
+        function (error, resp, body) {
+          options.since = JSON.parse(body)['update_seq'];
+          callback();
+      })
       return p;
     }
     getSeq(start);
