@@ -1,24 +1,33 @@
 var request = require('request')
   , sys = require('sys')
   , events = require('events')
+  , path = require('path')
   , querystring = require('querystring')
+  , child = require('child_process')
   ;
 
 var headers = {'content-type':'application/json', 'accept':'application/json'}
 
 function createDatabaseListener (uri, db) {
   if (!db) db = {
-    ddocs : {}
+      ddocs : {}
+    , ids : []
     , onChange: function (change) {
       db.seq = change.seq;
-      if (change.doc.slice(0, '_design/'.length) === '_design/') {
+      if (change.id.slice(0, '_design/'.length) === '_design/') {
         db.onDesignDoc(change.doc);
-      }
+      } 
+      db.ids.forEach(function (id) {
+        db.ddocs[id]._changes_process().stdin.write(JSON.stringify(["change", change])+'\n');
+      })
     }
     , onDesignDoc: function (doc) {
       sys.puts(doc._id)
       if (db.ddocs[doc._id] && db.ddocs[doc._id].changes) {
         // take down the process
+        sys.puts("Stopping process for "+doc._id);
+        db.ddocs[doc._id]._changes_process().kill();
+        db.ids.splice(db.ids.indexOf(doc._id),1)
       }
       
       if (doc._deleted) {
@@ -27,6 +36,12 @@ function createDatabaseListener (uri, db) {
         db.ddocs[doc._id] = doc;
         if (doc.changes) {
           // start up the process
+          sys.puts("Starting process for "+doc._id)
+          var p = child.spawn(process.execPath, [path.join(__dirname, 'child.js')]);
+          p.stderr.on("data", function (chunk) {sys.error(chunk.toString())})
+          p.stdin.write(JSON.stringify(["ddoc", doc])+'\n');
+          db.ddocs[doc._id]._changes_process = function(){return p};
+          db.ids.push(doc._id)
         }
       }
     }
@@ -39,7 +54,7 @@ function createDatabaseListener (uri, db) {
     while (changesStream.buffer.indexOf('\n') !== -1) {
       line = chunk.slice(0, changesStream.buffer.indexOf('\n'));
       if (line.length > 1) db.onChange(JSON.parse(line));
-      changesStream.buffer = changesStream.buffer.slice(changesStream.buffer.indexOf('\n'))
+      changesStream.buffer = changesStream.buffer.slice(changesStream.buffer.indexOf('\n') + 1)
     }
   };
   changesStream.end = function () {createDatabaseListener(uri, db)};
