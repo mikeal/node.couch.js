@@ -14,7 +14,7 @@ function createDatabaseListener (uri, db) {
     , ids : []
     , onChange: function (change) {
       db.seq = change.seq;
-      if (change.id.slice(0, '_design/'.length) === '_design/') {
+      if (change.id && change.id.slice(0, '_design/'.length) === '_design/') {
         db.onDesignDoc(change.doc);
       } 
       db.ids.forEach(function (id) {
